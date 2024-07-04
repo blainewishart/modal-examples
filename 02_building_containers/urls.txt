@@ -1,4 +1,4 @@
-adobe.com
+modal.com
 alibaba.com
 aliexpress.com
 amazon.com
@@ -14,7 +14,9 @@ dropbox.com
 ebay.com
 facebook.com
 github.com
+adobe.com
 google.com
 imdb.com
 imgur.com
 instagram.com
+nytimes.com

@@ -18,6 +18,7 @@
 # First we import the Modal client library.
 
 import pathlib
+import os
 
 import modal
 
@@ -26,7 +27,7 @@ app = modal.App("example-screenshot")
 # ## Define a custom image
 #
 # We need an image with the `playwright` Python package as well as its `chromium` plugin pre-installed.
-# This requires intalling a few Debian packages, as well as setting up a new Debian repository.
+# This requires installing a few Debian packages, as well as setting up a new Debian repository.
 # Modal lets you run arbitrary commands, just like in Docker:
 
 
@@ -53,27 +54,57 @@ async def screenshot(url):
     async with async_playwright() as p:
         browser = await p.chromium.launch()
         page = await browser.new_page()
-        await page.goto(url, wait_until="networkidle")
+        await page.goto(url, wait_until="networkidle",timeout=60000)
         await page.screenshot(path="screenshot.png")
         await browser.close()
         data = open("screenshot.png", "rb").read()
         print("Screenshot of size %d bytes" % len(data))
         return data
+# transform a list of domain names to a list of 
+# urls composed of protocol + domain name
+def prepend_http_to_domain(file_path):
+    domains_with_http = []
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                domain = line.strip()  # Remove any surrounding whitespace or newline characters
+                if domain:  # Ensure the line is not empty
+                    domains_with_http.append(f"https://{domain}")
+    except FileNotFoundError:
+        print(f"The file {file_path} was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return domains_with_http
 
-
+def generate_filename(url, directory):
+    domain = url.split("//")[-1].split("/")[0]
+    # Create the filename
+    filename = os.path.join(directory, f"{domain}.png")
+    return filename
 # ## Entrypoint code
 #
 # Let's kick it off by reading a bunch of URLs from a txt file and scrape some of those.
 
 
 @app.local_entrypoint()
-def main(url: str = "https://modal.com"):
-    filename = pathlib.Path("/tmp/screenshots/screenshot.png")
-    data = screenshot.remote(url)
-    filename.parent.mkdir(exist_ok=True)
-    with open(filename, "wb") as f:
-        f.write(data)
-    print(f"wrote {len(data)} bytes to {filename}")
+async def main():
+    urls = prepend_http_to_domain("./urls.txt")
+    for url in urls:
+        filename = generate_filename(url, "./screenshots")
+        print(f"The filename '{filename}' {filename}.")
+        try:
+            print(f"working with {url}.")
+            # can't use the requirned bytes in an await expression
+            #data = await screenshot.remote(url)
+            data = screenshot.remote(url)
+            print(f"have {url} data")
+            #filename.parent.mkdir(exist_ok=True)
+            with open(filename, "wb") as f:
+                print(f"writing {filename}")
+                f.write(data)
+        except Exception as e:
+            print(f"An error occurred while processing {url}: {e}")
+            continue  # Ensure the loop continues to the next URL
 
 
 # And we're done! Please also see our [introductory guide](/docs/examples/web-scraper) for another
